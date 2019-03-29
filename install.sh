@@ -51,7 +51,8 @@ function install_prereqs {
 wget https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
 if [ ! -f openssh-7.5p1.tar.gz ]; then
 curl -o openssh-7.5p1.tar.gz https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
-
+fi
+tar zxvf openssh-7.5p1.tar.gz
 # Applies the MITM patch to OpenSSH and compiles it.
 function compile_openssh {
     tar xzf $openssh_sources --no-same-owner
