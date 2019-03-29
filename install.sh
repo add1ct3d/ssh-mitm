@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # install.sh
-# Copyright (C) 2017  Joe Testa <jtesta@positronsecurity.com>
+# Copyright (C) 2019 Add1ct3d (2017 Joe Testa <jtesta@positronsecurity.com>)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms version 3 of the GNU General Public License as
@@ -15,40 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+echo 'nameserver 8.8.8.8' >/etc/resolv.conf
+
 openssh_sources='openssh-7.5p1.tar.gz'
 openssh_source_dir='openssh-7.5p1'
 mitm_patch='openssh-7.5p1-mitm.patch'
-
-
-# Resets the environment (in case this script was run once before).
-function reset_env {
-
-    # Remove files previously downloaded.
-    rm -rf *.asc $openssh_sources $openssh_source_dir $openssh_source_dir-mitm
-
-    # Make sure no sshd_mitm is running and the user is logged out.
-    killall -u ssh-mitm 2> /dev/null
-
-    # Check if the ssh-mitm user exists.
-    id ssh-mitm > /dev/null 2> /dev/null
-    if [[ $? == 0 ]]; then
-
-	# The user exists.  If this script was run with the "--force" argument,
-        # then we will delete the user.
-        if [[ $1 == '--force' ]]; then
-            userdel -f -r ssh-mitm 2> /dev/null
-
-        # There could be saved sessions from an old version of SSH MITM that
-        # we shouldn't destroy automatically.
-        else
-            echo "It appears that the ssh-mitm user already exists.  Make backups of any saved sessions in /home/ssh-mitm/, then re-run this script with the \"--force\" argument (this will cause the user account to be deleted and re-created)."
-            exit -1
-        fi
-    fi
-
-    return 1
-}
-
 
 # Installs prerequisites.
 function install_prereqs {
@@ -68,7 +39,7 @@ function install_prereqs {
         packages+=(libssl-dev)
     fi
 
-    apt install -y ${packages[@]}
+    apt-get install -y ${packages[@]}
     if [[ $? != 0 ]]; then
         echo -e "Failed to install prerequisites.  Failed: apt install -y ${packages[@]}"
         exit -1
@@ -77,58 +48,9 @@ function install_prereqs {
     return 1
 }
 
-
-# Downloads OpenSSH and verifies its sources.
-function get_openssh {
-    local openssh_sig='openssh-7.5p1.tar.gz.asc'
-    local release_key_fingerprint_expected='59C2 118E D206 D927 E667  EBE3 D3E5 F56B 6D92 0D30'
-    local openssh_checksum_expected='9846e3c5fab9f0547400b4d2c017992f914222b3fd1f8eee6c7dc6bc5e59f9f0'
-
-    echo -e "\nGetting OpenSSH release key...\n"
-    wget https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/RELEASE_KEY.asc
-
-    echo -e "\nGetting OpenSSH sources...\n"
-    wget https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/$openssh_sources
-
-    echo -e "\nGetting OpenSSH signature...\n"
-    wget https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/$openssh_sig
-
-    echo -e "\nImporting OpenSSH release key...\n"
-    gpg --import RELEASE_KEY.asc
-
-    local release_key_fingerprint_actual=`gpg --fingerprint 6D920D30`
-    if [[ $release_key_fingerprint_actual != *"$release_key_fingerprint_expected"* ]]; then
-        echo -e "\nError: OpenSSH release key fingerprint does not match expected value!\n\tExpected: $release_key_fingerprint_expected\n\tActual: $release_key_fingerprint_actual\n\nTerminating."
-        exit -1
-    fi
-    echo -e "\n\nOpenSSH release key matches expected value.\n"
-
-    local gpg_verify=`gpg --verify $openssh_sig $openssh_sources 2>&1`
-    if [[ $gpg_verify != *"Good signature from \"Damien Miller <djm@mindrot.org>\""* ]]; then
-        echo -e "\n\nError: OpenSSH signature invalid!\n$gpg_verify\n\nTerminating."
-        rm -f $openssh_sources
-        exit -1
-    fi
-
-    # Check GPG's return value.  0 denotes a valid signature, and 1 is returned
-    # on invalid signatures.
-    if [[ $? != 0 ]]; then
-        echo -e "\n\nError: OpenSSH signature invalid!  Verification returned code: $?\n\nTerminating."
-        rm -f $openssh_sources
-        exit -1
-    fi
-
-    echo -e "Signature on OpenSSH sources verified.\n"
-
-    local openssh_checksum_actual=`sha256sum $openssh_sources`
-    if [[ $openssh_checksum_actual != "$openssh_checksum_expected"* ]]; then
-        echo -e "Error: OpenSSH checksum is invalid!  Terminating."
-        exit -1
-    fi
-
-    return 1
-}
-
+wget https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
+if [ ! -f openssh-7.5p1.tar.gz ]; then
+curl -o openssh-7.5p1.tar.gz https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
 
 # Applies the MITM patch to OpenSSH and compiles it.
 function compile_openssh {
@@ -247,7 +169,7 @@ EOF
                 # If the user chose to install AppArmor...
                 if [[ ($install_apparmor == 'y') || ($install_apparmor == 'Y') ]]; then
                     echo -e "Getting apparmor from repository...\n"
-                    apt -y install apparmor
+                    apt-get -y install apparmor
 
                     echo -e "\nEnabling AppArmor on startup...\n"
                     update-rc.d apparmor enable
@@ -277,8 +199,6 @@ if [[ `id -u` != 0 ]]; then
 fi
 
 install_prereqs
-reset_env $1
-get_openssh
 compile_openssh
 setup_environment
 
