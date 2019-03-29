@@ -1,4 +1,6 @@
-# SSH MITM v2.1
+# SSH MITM v2.2
+
+Re-write And Fixes By Add1ct3d
 
 Author: [Joe Testa](https://www.positronsecurity.com/company/) ([@therealjoetesta](https://twitter.com/therealjoetesta))
 
